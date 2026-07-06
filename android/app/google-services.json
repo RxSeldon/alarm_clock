@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "217708551159",
+    "project_id": "alarm-clock-app-d44ed",
+    "storage_bucket": "alarm-clock-app-d44ed.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:217708551159:android:81cb7688e1398c77ccacf2",
+        "android_client_info": {
+          "package_name": "com.example.alarm_clock_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDr5soDcLV4YvxWH0Kxfh8m53MLqwetR2Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
