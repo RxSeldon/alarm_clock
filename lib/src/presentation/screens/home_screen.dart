@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../domain/entities/alarm.dart';
 import '../../domain/entities/alarm_event.dart';
+import '../../domain/entities/app_user.dart';
 import '../providers/providers.dart';
 import '../widgets/add_edit_alarm_sheet.dart';
 import '../widgets/alarm_tile.dart';
@@ -24,6 +25,7 @@ class HomeScreen extends ConsumerWidget {
     final ThemeData theme = Theme.of(context);
     final List<Alarm> alarms = ref.watch(alarmListProvider);
     final int activeCount = alarms.where((Alarm a) => a.isEnabled).length;
+    final AppUser? user = ref.watch(authStateProvider).valueOrNull;
 
     ref.listen<AsyncValue<AlarmEvent>>(alarmEventProvider, (previous, next) {
       next.whenData((AlarmEvent event) {
@@ -39,10 +41,34 @@ class HomeScreen extends ConsumerWidget {
     });
 
     return Scaffold(
+      appBar: AppBar(
+        titleSpacing: 24,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Signed in as', style: theme.textTheme.bodySmall),
+            Text(
+              user?.email ?? '—',
+              style: theme.textTheme.titleMedium,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Log out',
+            onPressed: () => _confirmLogout(context, ref),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SafeArea(
+        top: false,
         child: Column(
           children: [
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
             const DigitalClock(),
             const SizedBox(height: 28),
             Padding(
@@ -85,6 +111,34 @@ class HomeScreen extends ConsumerWidget {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  /// Confirms intent, then signs out. The [AuthGate] is watching the auth
+  /// stream, so it swaps back to the login screen on its own -- no manual
+  /// navigation needed here.
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final bool shouldLogout = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) => AlertDialog(
+            title: const Text('Log out?'),
+            content: const Text('You will need to sign in again to continue.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Log out'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (shouldLogout) {
+      await ref.read(authRepositoryProvider).signOut();
+    }
   }
 }
 

@@ -1,10 +1,16 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'src/presentation/screens/home_screen.dart';
+import 'firebase_options.dart';
+import 'src/presentation/screens/auth_gate.dart';
 import 'src/presentation/theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const ProviderScope(child: AlarmClockApp()));
 }
 
@@ -19,7 +25,9 @@ class AlarmClockApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      home: const HomeScreen(),
+      // AuthGate decides between the login flow and the home screen based on
+      // the current Firebase auth state.
+      home: const AuthGate(),
     );
   }
 }

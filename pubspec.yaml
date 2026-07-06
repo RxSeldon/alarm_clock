@@ -43,6 +43,10 @@ dependencies:
   # Local persistence for saved alarms.
   shared_preferences: ^2.3.3
 
+  # Firebase: core SDK + email/password authentication.
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

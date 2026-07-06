@@ -11,10 +11,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/alarm_scheduler.dart';
 import '../../application/alarm_sound_player.dart';
 import '../../application/clock_service.dart';
+import '../../data/firebase_auth_repository.dart';
 import '../../data/shared_preferences_alarm_repository.dart';
 import '../../domain/entities/alarm.dart';
 import '../../domain/entities/alarm_event.dart';
+import '../../domain/entities/app_user.dart';
 import '../../domain/repositories/alarm_repository.dart';
+import '../../domain/repositories/auth_repository.dart';
 
 final Provider<ClockService> clockServiceProvider = Provider<ClockService>(
   (ref) => SystemClockService(),
@@ -22,6 +25,18 @@ final Provider<ClockService> clockServiceProvider = Provider<ClockService>(
 
 final Provider<AlarmRepository> alarmRepositoryProvider =
     Provider<AlarmRepository>((ref) => SharedPreferencesAlarmRepository());
+
+final Provider<AuthRepository> authRepositoryProvider =
+    Provider<AuthRepository>((ref) => FirebaseAuthRepository());
+
+/// The current authentication state, streamed from the [AuthRepository].
+/// Emits the signed-in [AppUser] or `null` when signed out. The [AuthGate]
+/// watches this to decide between the login flow and the home screen, and the
+/// home screen reads it to show the signed-in email.
+final StreamProvider<AppUser?> authStateProvider =
+    StreamProvider<AppUser?>((ref) {
+  return ref.watch(authRepositoryProvider).authStateChanges();
+});
 
 final Provider<AlarmSoundPlayer> alarmSoundPlayerProvider =
     Provider<AlarmSoundPlayer>((ref) {
