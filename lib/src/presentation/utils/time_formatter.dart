@@ -38,9 +38,14 @@ class TimeFormatter {
     'December',
   ];
 
-  /// "07:42:05" style 24-hour clock used for the live clock face.
-  static String clock24(DateTime time) =>
-      '${_two(time.hour)}:${_two(time.minute)}:${_two(time.second)}';
+  /// "07:42:05" digits of the 12-hour clock face; pair with [period].
+  static String clock12(DateTime time) {
+    final int displayHour = time.hour % 12 == 0 ? 12 : time.hour % 12;
+    return '${_two(displayHour)}:${_two(time.minute)}:${_two(time.second)}';
+  }
+
+  /// "AM" / "PM" suffix for the clock face.
+  static String period(DateTime time) => time.hour >= 12 ? 'PM' : 'AM';
 
   /// "Thursday, July 2" style date line.
   static String longDate(DateTime time) =>

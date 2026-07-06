@@ -21,9 +21,17 @@ class DigitalClock extends ConsumerWidget {
 
     return Column(
       children: [
-        Text(
-          TimeFormatter.clock24(now),
-          style: theme.textTheme.displayLarge,
+        Text.rich(
+          TextSpan(
+            text: TimeFormatter.clock12(now),
+            style: theme.textTheme.displayLarge,
+            children: [
+              TextSpan(
+                text: ' ${TimeFormatter.period(now)}',
+                style: theme.textTheme.headlineSmall,
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 8),
         Text(
