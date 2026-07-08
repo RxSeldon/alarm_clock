@@ -27,6 +27,13 @@ abstract interface class AuthRepository {
   /// (wrong password, unknown email, ...).
   Future<void> signIn({required String email, required String password});
 
+  /// Signs in with a Google account, creating one on first use.
+  ///
+  /// Opens the Google account chooser. Returns normally (no throw) if the
+  /// user cancels the chooser. Throws an [AuthException] with a user-friendly
+  /// message on any other failure.
+  Future<void> signInWithGoogle();
+
   /// Signs the current user out.
   Future<void> signOut();
 }

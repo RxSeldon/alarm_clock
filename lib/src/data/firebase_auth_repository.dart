@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../domain/entities/app_user.dart';
 import '../domain/repositories/auth_repository.dart';
@@ -11,10 +12,12 @@ import '../domain/repositories/auth_repository.dart';
 /// the data layer ever imports Firebase (Single Responsibility + Dependency
 /// Inversion).
 class FirebaseAuthRepository implements AuthRepository {
-  FirebaseAuthRepository([FirebaseAuth? auth])
-      : _auth = auth ?? FirebaseAuth.instance;
+  FirebaseAuthRepository([FirebaseAuth? auth, GoogleSignIn? googleSignIn])
+      : _auth = auth ?? FirebaseAuth.instance,
+        _googleSignIn = googleSignIn ?? GoogleSignIn();
 
   final FirebaseAuth _auth;
+  final GoogleSignIn _googleSignIn;
 
   @override
   Stream<AppUser?> authStateChanges() =>
@@ -54,10 +57,51 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      // The user backed out of the account chooser -- not an error.
+      if (googleUser == null) return;
 
-  AppUser? _toAppUser(User? user) =>
-      user == null ? null : AppUser(uid: user.uid, email: user.email);
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await _auth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_messageFor(e));
+    }
+  }
+
+  @override
+  Future<void> signOut() async {
+    // Sign out of Google too, so the next Google sign-in shows the account
+    // chooser again instead of silently reusing the last account.
+    await _googleSignIn.signOut();
+    await _auth.signOut();
+  }
+
+  AppUser? _toAppUser(User? user) => user == null
+      ? null
+      : AppUser(
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoUrl: user.photoURL,
+          phoneNumber: user.phoneNumber,
+          provider: _providerFor(user),
+        );
+
+  /// A user can technically be linked to multiple providers; this app only
+  /// offers Google and email/password, so "any linked Google provider" is
+  /// enough to call the account a Google sign-in.
+  SignInProvider _providerFor(User user) {
+    final bool hasGoogle =
+        user.providerData.any((info) => info.providerId == 'google.com');
+    return hasGoogle ? SignInProvider.google : SignInProvider.emailPassword;
+  }
 
   /// Maps Firebase error codes to messages that are safe to show the user.
   String _messageFor(FirebaseAuthException e) {
@@ -76,6 +120,9 @@ class FirebaseAuthRepository implements AuthRepository {
         return 'Password is too weak. Use at least 6 characters.';
       case 'operation-not-allowed':
         return 'Email/password sign-in is not enabled for this project.';
+      case 'account-exists-with-different-credential':
+        return 'An account already exists with the same email but a '
+            'different sign-in method.';
       case 'network-request-failed':
         return 'Network error. Check your connection and try again.';
       case 'too-many-requests':

@@ -34,6 +34,9 @@ class FakeSignedInAuthRepository implements AuthRepository {
       async {}
 
   @override
+  Future<void> signInWithGoogle() async {}
+
+  @override
   Future<void> signOut() async {}
 }
 

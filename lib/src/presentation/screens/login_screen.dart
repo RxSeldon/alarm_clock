@@ -48,6 +48,25 @@ class LoginScreen extends HookConsumerWidget {
       }
     }
 
+    Future<void> signInWithGoogle() async {
+      errorText.value = null;
+      isLoading.value = true;
+      try {
+        await ref.read(authRepositoryProvider).signInWithGoogle();
+        // Success (or user cancelled): AuthGate reacts to the auth stream.
+        // If they cancelled, no user is signed in, so stop the spinner.
+        if (ref.read(authRepositoryProvider).currentUser == null) {
+          isLoading.value = false;
+        }
+      } on AuthException catch (e) {
+        errorText.value = e.message;
+        isLoading.value = false;
+      } catch (_) {
+        errorText.value = 'Google sign-in failed. Please try again.';
+        isLoading.value = false;
+      }
+    }
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -116,6 +135,23 @@ class LoginScreen extends HookConsumerWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text('Log in'),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('or', style: theme.textTheme.bodySmall),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: isLoading.value ? null : signInWithGoogle,
+                  icon: const Icon(Icons.g_mobiledata, size: 28),
+                  label: const Text('Continue with Google'),
                 ),
                 const SizedBox(height: 16),
                 Row(

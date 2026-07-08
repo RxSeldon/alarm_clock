@@ -8,6 +8,7 @@ import '../providers/providers.dart';
 import '../widgets/add_edit_alarm_sheet.dart';
 import '../widgets/alarm_tile.dart';
 import '../widgets/digital_clock.dart';
+import 'profile_screen.dart';
 
 /// App root screen: live clock + alarm list.
 ///
@@ -34,17 +35,22 @@ class HomeScreen extends HookConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 24,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Signed in as', style: theme.textTheme.bodySmall),
-            Text(
-              user?.email ?? '—',
-              style: theme.textTheme.titleMedium,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+        title: InkWell(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Signed in as', style: theme.textTheme.bodySmall),
+              Text(
+                user?.email ?? '—',
+                style: theme.textTheme.titleMedium,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
         actions: [
           IconButton(

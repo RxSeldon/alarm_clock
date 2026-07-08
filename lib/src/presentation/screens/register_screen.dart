@@ -65,6 +65,29 @@ class RegisterScreen extends HookConsumerWidget {
       }
     }
 
+    Future<void> signInWithGoogle() async {
+      errorText.value = null;
+      isLoading.value = true;
+      try {
+        await ref.read(authRepositoryProvider).signInWithGoogle();
+        if (ref.read(authRepositoryProvider).currentUser == null) {
+          // User cancelled the chooser; stay on this screen.
+          isLoading.value = false;
+          return;
+        }
+        // Signed in: pop back to the AuthGate, which now shows the home screen.
+        if (context.mounted) {
+          Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+        }
+      } on AuthException catch (e) {
+        errorText.value = e.message;
+        isLoading.value = false;
+      } catch (_) {
+        errorText.value = 'Google sign-in failed. Please try again.';
+        isLoading.value = false;
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Create account')),
       body: SafeArea(
@@ -143,6 +166,23 @@ class RegisterScreen extends HookConsumerWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text('Register'),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('or', style: theme.textTheme.bodySmall),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: isLoading.value ? null : signInWithGoogle,
+                  icon: const Icon(Icons.g_mobiledata, size: 28),
+                  label: const Text('Continue with Google'),
                 ),
                 const SizedBox(height: 16),
                 Row(
