@@ -1,23 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../domain/entities/alarm.dart';
-import '../../domain/entities/alarm_event.dart';
 import '../../domain/entities/app_user.dart';
 import '../providers/providers.dart';
 import '../widgets/add_edit_alarm_sheet.dart';
 import '../widgets/alarm_tile.dart';
 import '../widgets/digital_clock.dart';
-import 'alarm_ringing_screen.dart';
 
 /// App root screen: live clock + alarm list.
 ///
-/// Also owns the event-driven wiring for the alarm engine: it listens to
-/// [alarmEventProvider] and, whenever an [AlarmRingingEvent] arrives, pushes
-/// the full-screen [AlarmRingingScreen] on top of itself. The scheduler that
-/// produces the event has no idea the UI exists; the UI has no idea how the
-/// event was computed -- they only share the [AlarmEvent] contract.
-class HomeScreen extends ConsumerWidget {
+/// The "push the ringing screen when an alarm fires" wiring lives at the app
+/// level (see `AlarmClockApp` in main.dart), so the alarm pops up even when
+/// the user is on a different screen than this one.
+class HomeScreen extends HookConsumerWidget {
   const HomeScreen({super.key});
 
   @override
@@ -27,18 +24,12 @@ class HomeScreen extends ConsumerWidget {
     final int activeCount = alarms.where((Alarm a) => a.isEnabled).length;
     final AppUser? user = ref.watch(authStateProvider).valueOrNull;
 
-    ref.listen<AsyncValue<AlarmEvent>>(alarmEventProvider, (previous, next) {
-      next.whenData((AlarmEvent event) {
-        if (event is AlarmRingingEvent) {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              fullscreenDialog: true,
-              builder: (_) => AlarmRingingScreen(alarm: event.alarm),
-            ),
-          );
-        }
-      });
-    });
+    // Real alarms need notification (Android 13+) and exact-alarm access;
+    // ask once, the first time the home screen appears after sign-in.
+    useEffect(() {
+      ref.read(systemAlarmServiceProvider).requestPermissions();
+      return null;
+    }, const []);
 
     return Scaffold(
       appBar: AppBar(

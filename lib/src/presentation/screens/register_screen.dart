@@ -10,8 +10,8 @@ import '../providers/providers.dart';
 /// Does light client-side validation (email present, password length, and
 /// matching confirmation) before calling the [AuthRepository]; anything the
 /// backend rejects comes back as an [AuthException] and is shown inline. On
-/// success Firebase signs the new user in, so the [AuthGate] routes straight
-/// to the home screen -- this screen just pops off the stack behind it.
+/// success Firebase signs the new user in and this screen pops back to the
+/// [AuthGate], which is already showing the home screen for the new session.
 class RegisterScreen extends HookConsumerWidget {
   const RegisterScreen({super.key});
 
@@ -49,7 +49,13 @@ class RegisterScreen extends HookConsumerWidget {
         await ref
             .read(authRepositoryProvider)
             .register(email: email, password: password);
-        // Success: AuthGate swaps in the home screen automatically.
+        // Success: Firebase has signed the new user in and the AuthGate (the
+        // navigator's first route) is already swapping to the home screen.
+        // This screen was *pushed on top* of the AuthGate, so it must pop
+        // itself, or the user stays stuck here behind the spinner.
+        if (context.mounted) {
+          Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+        }
       } on AuthException catch (e) {
         errorText.value = e.message;
         isLoading.value = false;

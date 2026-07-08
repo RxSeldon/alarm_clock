@@ -8,9 +8,9 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../application/alarm_scheduler.dart';
-import '../../application/alarm_sound_player.dart';
 import '../../application/clock_service.dart';
+import '../../application/philippine_time.dart';
+import '../../application/system_alarm_service.dart';
 import '../../data/firebase_auth_repository.dart';
 import '../../data/shared_preferences_alarm_repository.dart';
 import '../../domain/entities/alarm.dart';
@@ -38,17 +38,10 @@ final StreamProvider<AppUser?> authStateProvider =
   return ref.watch(authRepositoryProvider).authStateChanges();
 });
 
-final Provider<AlarmSoundPlayer> alarmSoundPlayerProvider =
-    Provider<AlarmSoundPlayer>((ref) {
-  final SystemAlarmSoundPlayer player = SystemAlarmSoundPlayer();
-  ref.onDispose(player.stop);
-  return player;
-});
-
-final Provider<AlarmScheduler> alarmSchedulerProvider =
-    Provider<AlarmScheduler>(
-  (ref) => AlarmScheduler(ref.watch(clockServiceProvider)),
-);
+/// Bridge to real OS alarms (sound + notification even when the app is in
+/// the background, the screen is off, or the app was killed).
+final Provider<SystemAlarmService> systemAlarmServiceProvider =
+    Provider<SystemAlarmService>((ref) => SystemAlarmService());
 
 /// The live wall-clock time, ticking once per second. Backs the on-screen
 /// digital clock.
@@ -58,11 +51,15 @@ final StreamProvider<DateTime> currentTimeProvider =
 });
 
 /// The stream of alarm-triggered events. Screens subscribe via `ref.listen`
-/// to react (e.g. push the ringing screen) without polling anything.
+/// to react (e.g. push the ringing screen) without polling anything. The
+/// events now originate from real OS alarms instead of an in-app timer, but
+/// consumers only ever see the same [AlarmEvent] contract.
 final StreamProvider<AlarmEvent> alarmEventProvider =
     StreamProvider<AlarmEvent>((ref) {
-  final AlarmScheduler scheduler = ref.watch(alarmSchedulerProvider);
-  return scheduler.watch(() => ref.read(alarmListProvider));
+  final SystemAlarmService service = ref.watch(systemAlarmServiceProvider);
+  return service
+      .onAlarmRinging(() => ref.read(alarmListProvider))
+      .map(AlarmRingingEvent.new);
 });
 
 /// Owns the in-memory list of alarms and keeps it persisted through
@@ -70,10 +67,12 @@ final StreamProvider<AlarmEvent> alarmEventProvider =
 /// widgets never mutate the list directly (Single Responsibility).
 class AlarmListNotifier extends Notifier<List<Alarm>> {
   late final AlarmRepository _repository;
+  late final SystemAlarmService _systemAlarms;
 
   @override
   List<Alarm> build() {
     _repository = ref.watch(alarmRepositoryProvider);
+    _systemAlarms = ref.watch(systemAlarmServiceProvider);
     _loadInitial();
     return <Alarm>[];
   }
@@ -81,6 +80,9 @@ class AlarmListNotifier extends Notifier<List<Alarm>> {
   Future<void> _loadInitial() async {
     final List<Alarm> alarms = await _repository.loadAlarms();
     state = _sorted(alarms);
+    // Re-register everything with the OS in case alarms changed while the
+    // app was closed (or the OS dropped them, e.g. after a reboot).
+    await _systemAlarms.syncAlarms(state);
   }
 
   Future<void> addAlarm(Alarm alarm) async {
@@ -108,15 +110,43 @@ class AlarmListNotifier extends Notifier<List<Alarm>> {
     await _persist();
   }
 
-  /// Called when a one-time (non-repeating) alarm finishes ringing, so it
-  /// doesn't fire again on the same saved time.
-  Future<void> disableOneTimeAlarm(String id) async {
-    final int index = state.indexWhere((Alarm a) => a.id == id);
-    if (index == -1 || state[index].isRepeating) return;
-    await toggleAlarm(id, false);
+  /// Stops the ringing OS alarm, turns off one-time alarms so they don't
+  /// fire again tomorrow, and re-syncs so repeating alarms get their next
+  /// occurrence scheduled.
+  Future<void> dismissRinging(Alarm alarm) async {
+    await _systemAlarms.stopRinging(alarm);
+    final int index = state.indexWhere((Alarm a) => a.id == alarm.id);
+    if (index != -1 && !state[index].isRepeating) {
+      state = [
+        for (final Alarm a in state)
+          if (a.id == alarm.id) a.copyWith(isEnabled: false) else a,
+      ];
+    }
+    await _persist();
   }
 
-  Future<void> _persist() => _repository.saveAlarms(state);
+  /// Stops the ringing OS alarm and schedules a one-time alarm [delay] from
+  /// now in its place.
+  Future<void> snoozeRinging(
+    Alarm alarm, {
+    Duration delay = const Duration(minutes: 5),
+  }) async {
+    await _systemAlarms.stopRinging(alarm);
+    final DateTime snoozeAt = PhilippineTime.now().add(delay);
+    await addAlarm(Alarm(
+      id: 'snooze-${DateTime.now().microsecondsSinceEpoch}',
+      hour: snoozeAt.hour,
+      minute: snoozeAt.minute,
+      label: alarm.label.isEmpty ? 'Snooze' : '${alarm.label} (snoozed)',
+    ));
+  }
+
+  /// Saves the list and mirrors it into the OS alarm schedule, so storage
+  /// and "what will actually ring" can never drift apart.
+  Future<void> _persist() async {
+    await _repository.saveAlarms(state);
+    await _systemAlarms.syncAlarms(state);
+  }
 
   List<Alarm> _sorted(List<Alarm> alarms) {
     final List<Alarm> copy = [...alarms];

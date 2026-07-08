@@ -46,6 +46,8 @@ dependencies:
   # Firebase: core SDK + email/password authentication.
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
+  alarm: ^5.5.0
+  permission_handler: ^12.0.3
 
 dev_dependencies:
   flutter_test:

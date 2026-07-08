@@ -15,4 +15,14 @@ class PhilippineTime {
 
   /// "Now" in Philippine Standard Time.
   static DateTime now() => DateTime.now().toUtc().add(_offset);
+
+  /// Converts a PHT wall-clock value (in the shifted-UTC form produced by
+  /// [now]) into the same instant expressed in the device's local time --
+  /// the form the OS wants when scheduling a real alarm.
+  static DateTime toDeviceTime(DateTime phtTime) =>
+      phtTime.subtract(_offset).toLocal();
+
+  /// The reverse of [toDeviceTime]: a device-local instant as PHT wall time.
+  static DateTime fromDeviceTime(DateTime deviceTime) =>
+      deviceTime.toUtc().add(_offset);
 }

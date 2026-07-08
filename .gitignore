@@ -44,6 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Flat copies of the auth dart files for the lab upload; not source of truth.
+/submission/
+
 # Firebase config: committed on purpose so the app builds from a fresh clone.
 # These hold app identifiers, not secrets (see Firebase docs); access is
 # controlled by Firebase Auth/rules, not by hiding these files.

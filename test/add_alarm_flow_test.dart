@@ -11,6 +11,8 @@ import 'package:alarm_clock_app/main.dart';
 import 'package:alarm_clock_app/src/application/clock_service.dart';
 import 'package:alarm_clock_app/src/presentation/providers/providers.dart';
 
+import 'fakes.dart';
+
 class _StillClockService implements ClockService {
   @override
   Stream<DateTime> get onTick => const Stream<DateTime>.empty();
@@ -25,10 +27,16 @@ void main() {
       ProviderScope(
         overrides: [
           clockServiceProvider.overrideWithValue(_StillClockService()),
+          authRepositoryProvider
+              .overrideWithValue(const FakeSignedInAuthRepository()),
+          systemAlarmServiceProvider
+              .overrideWithValue(FakeSystemAlarmService()),
         ],
         child: const AlarmClockApp(),
       ),
     );
+    // Two pumps: one for the auth stream to emit, one for the rebuild.
+    await tester.pump();
     await tester.pump();
 
     // Empty state before adding anything.

@@ -5,9 +5,10 @@ import 'alarm.dart';
 /// Base type for events produced by the alarm engine.
 ///
 /// This is the "event" side of the event-driven architecture: the
-/// [AlarmScheduler] (application layer) emits these, and the presentation
-/// layer reacts to them (e.g. by pushing the ringing screen) without either
-/// side knowing the concrete details of the other.
+/// `SystemAlarmService` (application layer) emits these when an OS alarm
+/// fires, and the presentation layer reacts to them (e.g. by pushing the
+/// ringing screen) without either side knowing the concrete details of the
+/// other.
 @immutable
 sealed class AlarmEvent {
   const AlarmEvent();

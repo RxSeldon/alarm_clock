@@ -10,6 +10,8 @@ import 'package:alarm_clock_app/main.dart';
 import 'package:alarm_clock_app/src/application/clock_service.dart';
 import 'package:alarm_clock_app/src/presentation/providers/providers.dart';
 
+import 'fakes.dart';
+
 /// A [ClockService] that never ticks. Swapped in for [clockServiceProvider]
 /// so this test doesn't depend on a real periodic [Timer] -- exactly the
 /// kind of substitution the [ClockService] abstraction exists to enable.
@@ -27,10 +29,16 @@ void main() {
       ProviderScope(
         overrides: [
           clockServiceProvider.overrideWithValue(_StillClockService()),
+          authRepositoryProvider
+              .overrideWithValue(const FakeSignedInAuthRepository()),
+          systemAlarmServiceProvider
+              .overrideWithValue(FakeSystemAlarmService()),
         ],
         child: const AlarmClockApp(),
       ),
     );
+    // Two pumps: one for the auth stream to emit, one for the rebuild.
+    await tester.pump();
     await tester.pump();
 
     expect(find.text('No alarms yet'), findsOneWidget);

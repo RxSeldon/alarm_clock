@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-import '../../application/alarm_sound_player.dart';
-import '../../application/philippine_time.dart';
 import '../../domain/entities/alarm.dart';
 import '../providers/providers.dart';
 import '../utils/time_formatter.dart';
 
 /// Full-screen alert shown the instant an [Alarm] fires.
+///
+/// The alarm sound itself is played by the OS alarm (see
+/// `SystemAlarmService`), so it keeps ringing even if this screen never
+/// appears (locked phone, app in background); this screen only displays the
+/// alarm and offers snooze/dismiss.
 ///
 /// Uses `useAnimationController` + `useAnimation` (flutter_hooks) to drive a
 /// pulsing icon: the hook owns the controller's lifecycle, so it is created
@@ -29,12 +32,6 @@ class AlarmRingingScreen extends HookConsumerWidget {
     final double pulse = useAnimation(
       CurvedAnimation(parent: pulseController, curve: Curves.easeInOut),
     );
-
-    useEffect(() {
-      final AlarmSoundPlayer player = ref.read(alarmSoundPlayerProvider);
-      player.start();
-      return player.stop;
-    }, const []);
 
     return PopScope(
       canPop: false,
@@ -101,20 +98,12 @@ class AlarmRingingScreen extends HookConsumerWidget {
   }
 
   void _dismiss(BuildContext context, WidgetRef ref) {
-    ref.read(alarmListProvider.notifier).disableOneTimeAlarm(alarm.id);
+    ref.read(alarmListProvider.notifier).dismissRinging(alarm);
     Navigator.of(context).pop();
   }
 
   void _snooze(BuildContext context, WidgetRef ref) {
-    final DateTime snoozeAt = PhilippineTime.now().add(const Duration(minutes: 5));
-    ref.read(alarmListProvider.notifier).addAlarm(
-          Alarm(
-            id: 'snooze-${DateTime.now().microsecondsSinceEpoch}',
-            hour: snoozeAt.hour,
-            minute: snoozeAt.minute,
-            label: alarm.label.isEmpty ? 'Snooze' : '${alarm.label} (snoozed)',
-          ),
-        );
+    ref.read(alarmListProvider.notifier).snoozeRinging(alarm);
     Navigator.of(context).pop();
   }
 }
